@@ -1,0 +1,11 @@
+[package]
+name = "myos"
+version = "0.1.0"
+authors = ["IDragnev <iddragnev@gmail.com>"]
+edition = "2018"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
