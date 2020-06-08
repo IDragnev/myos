@@ -79,19 +79,16 @@ impl Writer {
     }
 
     pub fn write_string(&mut self, s: &str) {
-        for byte in s.bytes() {
-            match byte {
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
-                _                   => self.write_byte(0xfe),
-            }
-
+        for b in s.bytes() {
+            self.write_byte(b)
         }
     }
 
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
-            b'\n' => self.new_line(),
-            _     => self.write_regular_byte(byte),
+            b'\n'       => self.new_line(),
+            0x20..=0x7e => self.write_regular_byte(byte),
+            _           => self.write_regular_byte(0xfe),
         }
     }
 
