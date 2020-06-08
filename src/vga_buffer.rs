@@ -55,8 +55,8 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
-const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
+const BUFFER_HEIGHT: usize = 25;
 
 #[repr(transparent)]
 struct Buffer {
@@ -155,4 +155,66 @@ macro_rules! println {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        serial_print,
+        serial_println,
+    };
+    use super::{
+        WRITER,
+        BUFFER_HEIGHT,
+    };
+
+    #[test_case]
+    fn println_can_print_a_single_line() {
+        serial_print!("println_can_print_a_single_line... ");
+
+        println!("output");
+        
+        serial_println!("[ok]");
+    }
+
+    #[test_case]
+    fn println_can_print_many_lines() {
+        serial_print!("println_can_print_many_lines... ");
+        
+        for i in 0..200 {
+            println!("output line {}", i);
+        }
+        
+        serial_println!("[ok]");
+    }
+
+    #[test_case]
+    fn println_has_correct_output() {
+        serial_print!("println_has_correct_output... ");
+
+        let s = "A string that can fit in a single line";
+        
+        println!("{}", s);
+
+        let writer = WRITER.lock();
+        let screen_text = &writer.buffer.chars;
+
+        assert!(
+            s.chars()
+            .enumerate()
+            .all(|(i, c)| {
+                let screen_char = screen_text[BUFFER_HEIGHT - 2][i].read();
+                let screen_char = char::from(screen_char.ascii_character);
+                c == screen_char
+            })
+        );
+        assert!(
+            screen_text[BUFFER_HEIGHT - 1]
+            .iter()
+            .map(|sc| char::from(sc.read().ascii_character))
+            .all(|c| c == ' ')
+        );
+
+        serial_println!("[ok]");
+    }
 }
