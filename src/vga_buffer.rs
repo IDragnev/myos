@@ -159,41 +159,29 @@ pub fn _print(args: fmt::Arguments) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        serial_print,
-        serial_println,
-    };
     use super::{
         WRITER,
         BUFFER_HEIGHT,
+        Volatile,
+        ScreenChar,
     };
 
     #[test_case]
     fn println_can_print_a_single_line() {
-        serial_print!("println_can_print_a_single_line... ");
-
         println!("output");
-        
-        serial_println!("[ok]");
     }
 
     #[test_case]
     fn println_can_print_many_lines() {
-        serial_print!("println_can_print_many_lines... ");
-        
         for i in 0..200 {
             println!("output line {}", i);
         }
-        
-        serial_println!("[ok]");
     }
 
     #[test_case]
     fn println_has_correct_output() {
-        serial_print!("println_has_correct_output... ");
-
         let s = "A string that can fit in a single line";
-        
+
         println!("{}", s);
 
         let writer = WRITER.lock();
@@ -208,13 +196,14 @@ mod tests {
                 c == screen_char
             })
         );
-        assert!(
-            screen_text[BUFFER_HEIGHT - 1]
-            .iter()
-            .map(|sc| char::from(sc.read().ascii_character))
-            .all(|c| c == ' ')
-        );
+        assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 2][s.len()..]));
+        assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 1]));
+    }
 
-        serial_println!("[ok]");
+    fn are_all_blanks(screen_chars: &[Volatile<ScreenChar>]) -> bool {
+        screen_chars
+        .iter()
+        .map(|sc| char::from(sc.read().ascii_character))
+        .all(|c| c == ' ')
     }
 }
