@@ -9,6 +9,8 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    myos::init();
+
     println!("Welcome to myos!");
 
     #[cfg(test)]
