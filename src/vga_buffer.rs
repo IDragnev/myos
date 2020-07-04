@@ -154,7 +154,11 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 #[cfg(test)]
@@ -179,25 +183,31 @@ mod tests {
     }
 
     #[test_case]
-    fn println_has_correct_output() {
-        let s = "A string that can fit in a single line";
+    fn writing_lines_has_correct_output() {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
 
-        println!("{}", s);
+        let line = "A string that can fit in a single line";
 
-        let writer = WRITER.lock();
-        let screen_text = &writer.buffer.chars;
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
 
-        assert!(
-            s.chars()
-            .enumerate()
-            .all(|(i, c)| {
-                let screen_char = screen_text[BUFFER_HEIGHT - 2][i].read();
-                let screen_char = char::from(screen_char.ascii_character);
-                c == screen_char
-            })
-        );
-        assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 2][s.len()..]));
-        assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 1]));
+            writeln!(writer, "\n{}", line).expect("writeln failed");
+
+            let screen_text = &writer.buffer.chars;
+
+            assert!(
+                line.chars()
+                .enumerate()
+                .all(|(i, c)| {
+                    let screen_char = screen_text[BUFFER_HEIGHT - 2][i].read();
+                    let screen_char = char::from(screen_char.ascii_character);
+                    c == screen_char
+                })
+            );
+            assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 2][line.len()..]));
+            assert!(are_all_blanks(&screen_text[BUFFER_HEIGHT - 1]));
+        });
     }
 
     fn are_all_blanks(screen_chars: &[Volatile<ScreenChar>]) -> bool {

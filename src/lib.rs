@@ -12,9 +12,18 @@ pub mod gdt;
 
 use core::panic::PanicInfo;
 
+/// Performs system initialisation
 pub fn init() {
     gdt::init();
     interrupts::init_idt();
+    unsafe { interrupts::init_pics(); }
+    x86_64::instructions::interrupts::enable();
+}
+
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 pub fn test_runner(tests: &[&dyn Testable]) {
@@ -45,7 +54,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 
     exit_qemu(QemuExitCode::Failure);
 
-    loop {}
+    hlt_loop();
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
@@ -71,7 +80,7 @@ pub extern "C" fn _start() -> ! {
 
     test_main();
 
-    loop {}
+    hlt_loop();
 }
 
 #[cfg(test)]
