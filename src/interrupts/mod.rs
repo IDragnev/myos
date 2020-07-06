@@ -17,10 +17,10 @@ use interrupt_index::{
     InterruptIndex,
 };
 
-pub const PIC_1_OFFSET: u8 = 32;
-pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+const PIC_1_OFFSET: u8 = 32;
+const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
-pub static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe { 
+static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe { 
             ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) 
         });
 
