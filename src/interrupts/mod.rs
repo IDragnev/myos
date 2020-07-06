@@ -25,8 +25,10 @@ pub static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe {
         });
 
 /// Initializes the chained Programmable Interrupt Controllers
-pub unsafe fn init_pics() { 
-    PICS.lock().initialize()
+pub fn init_pics() { 
+    unsafe { 
+        PICS.lock().initialize()
+    }
 }
 
 lazy_static! {
