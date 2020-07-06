@@ -14,6 +14,7 @@ lazy_static! {
     );
 }
 
+/// Represents the standard color palette in VGA text mode
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -36,6 +37,7 @@ pub enum Color {
     White = 15,
 }
 
+/// A combination of a foreground and a background color
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 struct ColorCode(u8);
@@ -48,6 +50,7 @@ impl ColorCode {
     }
 }
 
+/// A screen character in the VGA text buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
@@ -63,6 +66,7 @@ struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
+/// A writer type that allows writing ASCII bytes and strings to an underlying `Buffer`.
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
@@ -70,6 +74,7 @@ pub struct Writer {
 }
 
 impl Writer {
+    /// Creates a new Writer which writes to the VGA text buffer
     fn new(color_code: ColorCode) -> Self {
         Writer {
             color_code,
@@ -78,12 +83,21 @@ impl Writer {
         }
     }
 
+    /// Writes a string to the VGA text buffer
+    /// 
+    /// Simply writes each byte of the given string,
+    /// using the write_byte method
     pub fn write_string(&mut self, s: &str) {
         for b in s.bytes() {
             self.write_byte(b)
         }
     }
 
+    /// Writes the given byte to the VGA text buffer
+    /// 
+    /// If the byte is not printable (not in the range 0x20 to 0x7e), 
+    /// the character code 0xfe is written.
+    /// The newline character inserts a new line.
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n'       => self.new_line(),
@@ -140,11 +154,13 @@ impl fmt::Write for Writer {
     }
 }
 
+/// Prints to the VGA text buffer
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
 }
 
+/// Prints to the VGA text buffer, appending a newline
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
