@@ -6,9 +6,14 @@
 
 use myos::println;
 use core::panic::PanicInfo;
+use bootloader::{
+    BootInfo,
+    entry_point
+};
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(kernel_main);
+
+fn kernel_main(_: &'static BootInfo) -> ! {
     myos::init();
 
     println!("Welcome to myos!");

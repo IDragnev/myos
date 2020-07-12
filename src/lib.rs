@@ -9,8 +9,18 @@ pub mod serial;
 pub mod vga_buffer;
 pub mod interrupts;
 pub mod gdt;
+pub mod memory;
 
 use core::panic::PanicInfo;
+
+#[cfg(test)]
+use bootloader::{
+    BootInfo,
+    entry_point
+};
+
+#[cfg(test)]
+entry_point!(test_kernel_main);
 
 /// Performs system initialisation
 pub fn init() {
@@ -74,8 +84,7 @@ pub enum QemuExitCode {
 }
 
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn test_kernel_main(_: &'static BootInfo) -> ! {
     init();
 
     test_main();
