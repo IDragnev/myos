@@ -4,6 +4,8 @@
 #![test_runner(myos::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate alloc;
+
 use myos::println;
 use core::panic::PanicInfo;
 use bootloader::{
