@@ -14,6 +14,8 @@ use x86_64::{
 };
 use linked_list_allocator::LockedHeap;
 
+pub mod bump;
+
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
@@ -53,4 +55,50 @@ fn heap_region_pages() -> PageRangeInclusive<Size4KiB> {
     let end_page = Page::containing_address(heap_end);
 
     Page::range_inclusive(start_page, end_page)
+}
+
+/// A wrapper around spin::Mutex to permit trait implementations.
+pub struct Locked<A> {
+    inner: spin::Mutex<A>,
+}
+
+impl<A> Locked<A> {
+    pub const fn new(inner: A) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<A> {
+        self.inner.lock()
+    }
+}
+
+/// Align the given address `addr` upwards to alignment `align`.
+///
+/// Requires that `align` is a power of two.
+fn align_up(addr: usize, align: usize) -> usize {
+    (addr + align - 1) & !(align - 1)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn align_up_with_already_aligned_address() {
+        let align = 4096;
+        let addr = 4 * align;
+
+        assert!(addr == align_up(addr, align));
+    }
+
+    #[test_case]
+    fn align_up_with_non_aligned_address() {
+        let align = 4096;
+        let addr = align + 100;
+
+        assert!(align_up(addr, align) == 2 * align);
+    }
 }
