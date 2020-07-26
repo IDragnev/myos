@@ -12,13 +12,14 @@ use x86_64::{
         },
     },
 };
-use linked_list_allocator::LockedHeap;
 
 pub mod bump;
-pub mod linked_list;
+pub mod fixed_size_block;
+
+use fixed_size_block::FixedSizeBlockAllocator;
 
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::empty());
 
 /// The start of the region of Virtual Memory allocated for the Heap
 const HEAP_START: usize = 0x_4444_4444_0000;
@@ -81,7 +82,6 @@ impl<A> Locked<A> {
 fn align_up(addr: usize, align: usize) -> usize {
     (addr + align - 1) & !(align - 1)
 }
-
 
 #[cfg(test)]
 mod tests {
