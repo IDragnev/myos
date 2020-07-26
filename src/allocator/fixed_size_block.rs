@@ -76,7 +76,7 @@ impl FixedSizeBlockAllocator {
 
     /// Allocates a block of memory with the required layout.
     pub fn alloc(&mut self, layout: Layout) -> *mut u8 {
-        match free_list_index(&layout) {
+        match self.free_list_index(&layout) {
             Some(i) => self.free_list_alloc(i),
             None    => self.fallback_alloc(layout),
         }
@@ -119,7 +119,11 @@ impl FixedSizeBlockAllocator {
     /// block_ptr must be a pointer returned by a call to the alloc function with identical layout.
     /// Undefined behavior may occur for invalid arguments, thus this function is unsafe.
     pub unsafe fn dealloc(&mut self, block_ptr: *mut u8, layout: Layout) {
-        match free_list_index(&layout) {
+        if block_ptr == ptr::null_mut() {
+            return;
+        }
+
+        match self.free_list_index(&layout) {
             Some(index) => {
                 assert!(mem::size_of::<Node>() <= BLOCK_LAYOUTS[index].size);
                 assert!(mem::align_of::<Node>() <= BLOCK_LAYOUTS[index].align);
@@ -138,18 +142,21 @@ impl FixedSizeBlockAllocator {
             }
         }
     }
-}
 
-/// Choose an appropriate free list for the given layout.
-///
-/// Returns an index into the `BLOCK_LAYOUTS` array.
-fn free_list_index(layout: &Layout) -> Option<usize> {
-    BLOCK_LAYOUTS
-    .iter()
-    .position(|block| {
-        layout.size()  <= block.size &&
-        layout.align() <= block.align
-    })
+    /// Choose an appropriate free list for the given layout.
+    fn free_list_index(&self, layout: &Layout) -> Option<usize> {
+        let heap_size = self.fallback_allocator.size(); 
+
+        BLOCK_LAYOUTS
+        .iter()
+        .filter(|block| {
+            block.size < heap_size
+        })
+        .position(|block| {
+            layout.size()  <= block.size &&
+            layout.align() <= block.align
+        })
+    }
 }
 
 unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
@@ -159,5 +166,77 @@ unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
 
     unsafe fn dealloc(&self, block_ptr: *mut u8, layout: Layout) {
         self.lock().dealloc(block_ptr, layout)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn empty_allocator_always_returns_null() {
+        let mut allocator = FixedSizeBlockAllocator::empty();
+        let layout = Layout::from_size_align(14, 8).unwrap();
+
+        assert!(allocator.alloc(layout) == ptr::null_mut());
+    }
+
+    #[test_case]
+    fn alloc_with_too_big_size_returns_null() {
+        let mut buffer = [0; 256];
+        let heap_start: *mut u8 = buffer.as_mut_ptr();
+        let mut allocator = unsafe {
+            FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
+        };
+        let layout = Layout::from_size_align(2 * buffer.len(), 8).unwrap();
+
+        assert!(allocator.alloc(layout) == ptr::null_mut());
+    }
+
+    #[test_case]
+    fn alloc_with_fittable_size_succeeds() {
+        let mut buffer = [0; 256];
+        let heap_start: *mut u8 = buffer.as_mut_ptr();
+        let mut allocator = unsafe {
+            FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
+        };
+        let layout = Layout::from_size_align(buffer.len() / 2, 8).unwrap();
+
+        assert!(allocator.alloc(layout) != ptr::null_mut());
+    }
+
+    #[test_case]
+    fn different_allocations_return_different_blocks() {
+        let mut buffer = [0; 256];
+        let heap_start: *mut u8 = buffer.as_mut_ptr();
+        let mut allocator = unsafe {
+            FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
+        };
+        let layout = Layout::from_size_align(4, 8).unwrap();
+
+        let first_block  = allocator.alloc(layout);
+        let second_block = allocator.alloc(layout);
+
+        assert!(first_block != ptr::null_mut());
+        assert!(second_block != ptr::null_mut());
+        assert!(first_block != second_block);
+    }
+
+    #[test_case]
+    fn deallocated_memory_can_be_reused() {
+        let mut buffer = [0; 256];
+        let heap_start: *mut u8 = buffer.as_mut_ptr();
+        let mut allocator = unsafe {
+            FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
+        };
+        let layout = Layout::from_size_align(150, 8).unwrap();
+
+        let block = allocator.alloc(layout);
+        assert!(block != ptr::null_mut());
+        unsafe {
+            allocator.dealloc(block, layout);
+        }
+        let block = allocator.alloc(layout);
+        assert!(block != ptr::null_mut());
     }
 }
