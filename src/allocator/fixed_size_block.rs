@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test_case]
-    fn alloc_with_too_big_size_returns_null() {
+    fn alloc_with_unfittable_layout_returns_null() {
         let mut buffer = [0; 256];
         let heap_start: *mut u8 = buffer.as_mut_ptr();
         let mut allocator = unsafe {
@@ -194,13 +194,13 @@ mod tests {
     }
 
     #[test_case]
-    fn alloc_with_fittable_size_succeeds() {
+    fn alloc_with_fittable_layout_succeeds() {
         let mut buffer = [0; 256];
         let heap_start: *mut u8 = buffer.as_mut_ptr();
         let mut allocator = unsafe {
             FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
         };
-        let layout = Layout::from_size_align(buffer.len() / 2, 8).unwrap();
+        let layout = Layout::from_size_align(buffer.len() / 2, 1).unwrap();
 
         assert!(allocator.alloc(layout) != ptr::null_mut());
     }
@@ -229,14 +229,14 @@ mod tests {
         let mut allocator = unsafe {
             FixedSizeBlockAllocator::new(heap_start as usize, buffer.len())
         };
-        let layout = Layout::from_size_align(150, 8).unwrap();
+        let layout = Layout::from_size_align(250, 1).unwrap();
 
         let block = allocator.alloc(layout);
         assert!(block != ptr::null_mut());
+        assert!(allocator.alloc(layout) == ptr::null_mut());
         unsafe {
             allocator.dealloc(block, layout);
         }
-        let block = allocator.alloc(layout);
-        assert!(block != ptr::null_mut());
+        assert!(allocator.alloc(layout) != ptr::null_mut());
     }
 }
