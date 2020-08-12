@@ -14,6 +14,35 @@ lazy_static! {
     );
 }
 
+const BUFFER_WIDTH: usize = 80;
+const BUFFER_HEIGHT: usize = 25;
+
+#[repr(transparent)]
+struct Buffer {
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
+}
+
+/// A screen character in the VGA text buffer
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+struct ScreenChar {
+    ascii_character: u8,
+    color_code: ColorCode,
+}
+
+/// A combination of a foreground and a background color
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+struct ColorCode(u8);
+
+impl ColorCode {
+    fn new(foreground: Color, background: Color) -> ColorCode {
+        ColorCode( 
+            (background as u8) << 4 | (foreground as u8) 
+        )
+    }
+}
+
 /// Represents the standard color palette in VGA text mode
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,35 +64,6 @@ pub enum Color {
     Pink = 13,
     Yellow = 14,
     White = 15,
-}
-
-/// A combination of a foreground and a background color
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-struct ColorCode(u8);
-
-impl ColorCode {
-    fn new(foreground: Color, background: Color) -> ColorCode {
-        ColorCode( 
-            (background as u8) << 4 | (foreground as u8) 
-        )
-    }
-}
-
-/// A screen character in the VGA text buffer
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-struct ScreenChar {
-    ascii_character: u8,
-    color_code: ColorCode,
-}
-
-const BUFFER_WIDTH: usize = 80;
-const BUFFER_HEIGHT: usize = 25;
-
-#[repr(transparent)]
-struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// A writer type that allows writing ASCII bytes and strings to an underlying `Buffer`.
@@ -179,12 +179,7 @@ pub fn _print(args: fmt::Arguments) {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        WRITER,
-        BUFFER_HEIGHT,
-        Volatile,
-        ScreenChar,
-    };
+    use super::*;
 
     #[test_case]
     fn println_can_print_a_single_line() {
