@@ -15,25 +15,30 @@ use lazy_static::lazy_static;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
-lazy_static! {
-    static ref IST: spin::Mutex<ist::InterruptStackTable> = spin::Mutex::new(ist::InterruptStackTable::new());
+struct TaskStateSegmentWithStacks {
+    interrupt_stacks: ist::InterruptStackTable,
+    tss: TaskStateSegment,
 }
 
 lazy_static! {
-    static ref TSS: TaskStateSegment = {
+    static ref TSS: TaskStateSegmentWithStacks = {
+        let interrupt_stacks = ist::InterruptStackTable::new();
         let mut tss = TaskStateSegment::new();
 
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
-            let table = IST.lock();
-
-            let stack = table[0].as_deref().unwrap();
+            let stack = interrupt_stacks[0]
+                        .as_deref()
+                        .expect("Empty InterruptStackTable entry");
             let stack_start = VirtAddr::from_ptr(stack);
             let stack_end = stack_start + ist::STACK_SIZE;
 
             stack_end
         };
 
-        tss
+        TaskStateSegmentWithStacks {
+            interrupt_stacks,
+            tss,
+        }
     };
 }
 
@@ -41,7 +46,7 @@ lazy_static! {
     static ref GDT: GdtWithSelectors = {
         let mut gdt = GlobalDescriptorTable::new();
         let code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
-        let tss_selector  = gdt.add_entry(Descriptor::tss_segment(&TSS));
+        let tss_selector  = gdt.add_entry(Descriptor::tss_segment(&TSS.tss));
         
         GdtWithSelectors{
             gdt,
