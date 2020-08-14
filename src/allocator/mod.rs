@@ -1,3 +1,5 @@
+pub mod fixed_size_block;
+
 use x86_64::{
     VirtAddr,
     structures::{
@@ -12,10 +14,6 @@ use x86_64::{
         },
     },
 };
-
-pub mod bump;
-pub mod fixed_size_block;
-
 use fixed_size_block::FixedSizeBlockAllocator;
 
 #[global_allocator]
@@ -73,33 +71,5 @@ impl<A> Locked<A> {
 
     pub fn lock(&self) -> spin::MutexGuard<A> {
         self.inner.lock()
-    }
-}
-
-/// Align the given address `addr` upwards to alignment `align`.
-///
-/// Requires that `align` is a power of two.
-fn align_up(addr: usize, align: usize) -> usize {
-    (addr + align - 1) & !(align - 1)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test_case]
-    fn align_up_with_already_aligned_address() {
-        let align = 4096;
-        let addr = 4 * align;
-
-        assert!(addr == align_up(addr, align));
-    }
-
-    #[test_case]
-    fn align_up_with_non_aligned_address() {
-        let align = 4096;
-        let addr = align + 100;
-
-        assert!(align_up(addr, align) == 2 * align);
     }
 }
