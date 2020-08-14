@@ -18,22 +18,31 @@ pub mod memory;
 pub mod allocator;
 
 use core::panic::PanicInfo;
-
-#[cfg(test)]
-use bootloader::{
-    BootInfo,
-    entry_point
+use bootloader::BootInfo;
+use x86_64::{
+    VirtAddr,
 };
 
 #[cfg(test)]
-entry_point!(test_kernel_main);
+use bootloader::entry_point;
 
 /// Performs system initialisation
-pub fn init() {
+pub fn init(boot_info: &'static BootInfo) {
+    init_heap(boot_info);
     gdt::init();
     interrupts::init_idt();
     interrupts::init_pics();
     x86_64::instructions::interrupts::enable();
+}
+
+pub fn init_heap(boot_info: &'static BootInfo) {
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe {
+        memory::BootInfoFrameAllocator::init(&boot_info.memory_map)
+    };
+    allocator::init_heap(&mut mapper, &mut frame_allocator)
+        .expect("heap initialization failed");
 }
 
 pub fn hlt_loop() -> ! {
@@ -90,18 +99,11 @@ pub enum QemuExitCode {
 }
 
 #[cfg(test)]
+entry_point!(test_kernel_main);
+
+#[cfg(test)]
 fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
-    use x86_64::VirtAddr;
-
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe {
-        memory::BootInfoFrameAllocator::init(&boot_info.memory_map)
-    };
-    allocator::init_heap(&mut mapper, &mut frame_allocator)
-        .expect("heap initialization failed");
-
-    init();
+    init(boot_info);
 
     test_main();
 

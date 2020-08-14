@@ -24,7 +24,7 @@ use bootloader::{
 
 
 #[cfg(test)]
-entry_point!(so_main);
+entry_point!(main);
 
 lazy_static! {
     static ref TEST_IDT: InterruptDescriptorTable = {
@@ -55,20 +55,10 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-fn so_main(boot_info: &'static BootInfo) -> ! {
+fn main(boot_info: &'static BootInfo) -> ! {
     serial_print!("stack_overflow::stack_overflow...\t");
 
-    use myos::{allocator, memory};
-    use x86_64::VirtAddr;
-
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe {
-        memory::BootInfoFrameAllocator::init(&boot_info.memory_map)
-    };
-    allocator::init_heap(&mut mapper, &mut frame_allocator)
-        .expect("heap initialization failed");
-
+    myos::init_heap(boot_info);
     myos::gdt::init();
     init_test_idt();
 

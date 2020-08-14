@@ -15,6 +15,7 @@ use lazy_static::lazy_static;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
+#[allow(dead_code)]
 struct TaskStateSegmentWithStacks {
     interrupt_stacks: ist::InterruptStackTable,
     tss: TaskStateSegment,
