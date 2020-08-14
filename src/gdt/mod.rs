@@ -1,3 +1,5 @@
+mod ist;
+
 use x86_64::{
     VirtAddr,
     structures::{
@@ -14,17 +16,20 @@ use lazy_static::lazy_static;
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
 lazy_static! {
+    static ref IST: spin::Mutex<ist::InterruptStackTable> = spin::Mutex::new(ist::InterruptStackTable::new());
+}
+
+lazy_static! {
     static ref TSS: TaskStateSegment = {
         let mut tss = TaskStateSegment::new();
 
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
-            const STACK_SIZE: usize = 4096;
+            let table = IST.lock();
 
-            static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+            let stack = table[0].as_deref().unwrap();
+            let stack_start = VirtAddr::from_ptr(stack);
+            let stack_end = stack_start + ist::STACK_SIZE;
 
-            let stack_start = VirtAddr::from_ptr(unsafe { &STACK });
-            let stack_end = stack_start + STACK_SIZE;
-            
             stack_end
         };
 

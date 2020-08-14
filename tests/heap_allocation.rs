@@ -22,8 +22,6 @@ fn main(boot_info: &'static BootInfo) -> ! {
     use myos::{allocator, memory};
     use x86_64::VirtAddr;
 
-    myos::init();
-
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe {
@@ -31,6 +29,8 @@ fn main(boot_info: &'static BootInfo) -> ! {
     };
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
+
+    myos::init();
 
     test_main();
 
