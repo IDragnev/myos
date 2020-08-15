@@ -25,7 +25,8 @@ impl InterruptStackTable {
 }
 
 #[derive(Copy, Clone)]
-#[repr(transparent)]
+#[repr(align(4096))]
+#[repr(C)]
 pub struct InterruptStack([u8; STACK_SIZE]);
 
 impl InterruptStack {
