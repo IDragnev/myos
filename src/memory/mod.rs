@@ -44,7 +44,7 @@ pub fn init(boot_info: &'static BootInfo) {
         .expect("Heap initialization failed");
 }
 
-/// Initialize a new OffsetPageTable.
+/// Initialize an OffsetPageTable with the Kernel's level 4 page table
 ///
 /// ## Safety
 ///
@@ -53,21 +53,6 @@ pub fn init(boot_info: &'static BootInfo) {
 /// `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
 unsafe fn init_page_table_mapper(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
-    let level_4_table = active_level_4_table(physical_memory_offset);
-    OffsetPageTable::new(level_4_table, physical_memory_offset)
-}
-
-/// Returns a mutable reference to the active level 4 table.
-///
-/// ## Safety
-///
-/// This function is unsafe because the caller must guarantee that the
-/// complete physical memory is mapped to virtual memory at the passed
-/// `physical_memory_offset`. Also, this function must be only called once
-/// to avoid aliasing `&mut` references (which is undefined behavior).
-unsafe fn active_level_4_table(physical_memory_offset: VirtAddr)
-    -> &'static mut PageTable 
-{
     use x86_64::registers::control::Cr3;
 
     let (level_4_table_frame, _) = Cr3::read();
@@ -75,8 +60,9 @@ unsafe fn active_level_4_table(physical_memory_offset: VirtAddr)
     let phys = level_4_table_frame.start_address();
     let virt = physical_memory_offset + phys.as_u64();
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
+    let level_4_table = &mut *page_table_ptr;
 
-    &mut *page_table_ptr
+    OffsetPageTable::new(level_4_table, physical_memory_offset)
 }
 
 fn map_heap_to_physical_memory<M, F>(
@@ -120,14 +106,14 @@ fn region_pages(start_address: VirtAddr, end_address: VirtAddr) -> PageRangeIncl
 fn map_pages_to_physical_memory<M, F>(
     mapper: &mut M,
     frame_allocator: &mut F,
-    region: PageRangeInclusive<Size4KiB>,
+    pages: PageRangeInclusive<Size4KiB>,
     flags: PageTableFlags,
 ) -> Result<(), MapToError<Size4KiB>>
 where 
     M: Mapper<Size4KiB>,
     F: FrameAllocator<Size4KiB>,
 {
-    for page in region {
+    for page in pages {
         let frame = frame_allocator
             .allocate_frame()
             .ok_or(MapToError::FrameAllocationFailed)?;
