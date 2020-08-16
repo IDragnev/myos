@@ -56,7 +56,7 @@ fn large_allocations_and_mulitple_reallocations_are_handled() {
 
 #[test_case]
 fn allocated_memory_is_freed_and_reused() {
-    use myos::allocator::HEAP_SIZE;
+    use myos::memory::HEAP_SIZE;
 
     for i in 0..HEAP_SIZE {
         let x = Box::new(i);

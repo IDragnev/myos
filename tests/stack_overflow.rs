@@ -11,12 +11,13 @@ use myos::{
     serial_println,
     QemuExitCode,
     exit_qemu,
+    memory,
+    allocator,
 };
 use x86_64::structures::idt::{
     InterruptDescriptorTable,
     InterruptStackFrame,
 };
-
 use bootloader::{
     BootInfo,
     entry_point
@@ -58,8 +59,11 @@ fn panic(info: &PanicInfo) -> ! {
 fn main(boot_info: &'static BootInfo) -> ! {
     serial_print!("stack_overflow::stack_overflow...\t");
 
-    myos::init_heap(boot_info);
-    myos::gdt::init();
+    memory::init(boot_info);
+    unsafe {
+        allocator::init_heap(memory::HEAP_START, memory::HEAP_SIZE);
+    }
+    gdt::init();
     init_test_idt();
 
     stack_overflow();
